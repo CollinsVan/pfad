@@ -1,66 +1,53 @@
-import requests
-from lxml import html
-
-import dotenv
+# import dotenv
 import os
 import datetime
+import csv
 
-# load the environment variables
-dotenv.load_dotenv()
+# Load environment variables
+# dotenv.load_dotenv()
 
-year = int(os.getenv('YEAR', 2024))
-filename = os.getenv('FILENAME', "crawled-page-{year}.html").format(year=year)
-data = []
+file = 'C:/Users/CollinsVan/my-forked-repo/data.csv'
 
-# check if the page exists
-if not os.path.exists(filename):
+# Automatically identify valid rows (call this after actually reading the CSV file)
+def is_data_row(row):
+    try:
+        # Check if columns 0, 1, and 2 are numeric
+        return (row[0].strip().isdigit() and row[1].strip().isdigit() and row[2].strip().isdigit())
+    except IndexError:
+        return False
 
-    # fetch the page if it doesn't exist
-    page = requests.get(os.getenv('URL'))
+# Check if the file exists
+if os.path.exists(file):
+    with open(file, 'r', encoding='UTF8') as f:
+        reader = csv.reader(f)
 
-    # save the page to a file
-    with open(filename, 'w', encoding='UTF8') as f:
-        f.write(page.text)
+        for row in reader:
+            # Filter valid rows
+            if is_data_row(row):
+                columns = [column.strip() for column in row]
+                row_string = " ".join(columns).strip()
+                if row_string == "":
+                    continue 
+                print(f'{row_string}')
 
-    page = page.text
+                year = int(columns[0])
+                month = int(columns[1])
+                day = int(columns[2])
+                value = columns[3]
+                dc = columns[4]
+
+                # If the value is 'Trace', treat it as 0.0
+                if value == 'Trace':
+                    value = 0.0
+                else:
+                    value = float(value)
+
+                    # Generate a datetime object
+                    dt = datetime.datetime(year, month, day)
+                    
+                    # If dc is 'C', print the result; otherwise, skip
+                    if dc == 'C':
+                        print(f'{dt} - {value}')
 
 else:
-    # if the page exists, read it from the file
-    with open(filename, 'r', encoding='UTF8') as f:
-        page = f.read()
-
-# parse the page to html
-tree = html.fromstring(page)
-
-# get the rows from the table
-rows = tree.xpath(os.getenv('ROW_XPATH'))
-
-# print the rows
-row_num = 0
-for row in rows:
-    columns = row.xpath(os.getenv('COL_XPATH'))
-    columns = [column.text_content() for column in columns]
-    columns = [column.strip() for column in columns]
-    row_string = " ".join(columns).strip()
-
-    # skip empty rows
-    if row_string.strip() == "":
-        continue
-
-    row_num += 1
-
-    print(f'Row {row_num}: {row_string}')
-
-    month = int(columns[0])
-    day = int(columns[1])
-            
-    for i in range(2, len(columns), 2):
-        if columns[i] != "":
-            # get the time in HHMM format
-            hour = columns[i][:2]
-            minute = columns[i][2:]
-
-            dt = datetime.datetime(year,month,day,int(hour),int(minute))
-            value = columns[i+1]
-            print(f'{dt} - {value}')            
-
+    print("CSV_FILE 不存在")
